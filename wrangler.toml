@@ -1,6 +1,13 @@
 # Cloudflare Wrangler config for Pages Functions + D1
+# api/wrangler.toml
 name = "wookstars-api"
+main = "src/index.ts"
 compatibility_date = "2025-12-01"
+workers_dev = true
+
+[vars]
+# Add your Pages domain(s) here so the browser can call the API
+ALLOWED_ORIGINS = "https://wookstars.pages.dev,https://wookstars.com"
 
 [[r2_buckets]]
 binding = "VIDEOS"
