@@ -9,4 +9,4 @@ bucket_name = "wookstars-videos"
 [[d1_databases]]
 binding = "DB"
 database_name = "wookstars-db"
-database_id = "PASTE_YOUR_D1_DATABASE_ID"
+database_id = "d4022eca-b0e3-452e-b356-0c8a56e2bee8"
