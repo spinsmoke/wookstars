@@ -4,7 +4,7 @@ compatibility_date = "2025-12-01"
 
 # Pages projects ignore some fields, but Wrangler uses them for local dev.
 [vars]
-R2_BUCKET = "wookstars-uploads"
+R2_BUCKET = "wookstars-videos"
 
 [[d1_databases]]
 binding = "DB"
