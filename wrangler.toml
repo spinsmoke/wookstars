@@ -1,12 +1,12 @@
 # Cloudflare Wrangler config for Pages Functions + D1
-name = "wookstars"
+name = "wookstars-api"
 compatibility_date = "2025-12-01"
 
-# Pages projects ignore some fields, but Wrangler uses them for local dev.
-[vars]
-R2_BUCKET = "wookstars-videos"
+[[r2_buckets]]
+binding = "VIDEOS"
+bucket_name = "wookstars-videos"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "wookstars-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "PASTE_YOUR_D1_DATABASE_ID"
