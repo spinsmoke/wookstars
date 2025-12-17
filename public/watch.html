@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Watch • WookStars</title>
+
+  <style>
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:#07060a;
+      color:#fff;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:16px;
+      border-bottom:1px solid rgba(255,255,255,.1);
+    }
+
+    .logo{
+      width:180px;
+    }
+
+    .container{
+      max-width:1100px;
+      margin:0 auto;
+      padding:20px;
+      display:grid;
+      grid-template-columns: 1fr 320px;
+      gap:20px;
+    }
+
+    @media (max-width: 900px){
+      .container{
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .player{
+      background:#000;
+      aspect-ratio:16/9;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:16px;
+      box-shadow:0 20px 60px rgba(0,0,0,.6);
+    }
+
+    .player span{
+      opacity:.6;
+    }
+
+    .meta h1{
+      margin:14px 0 6px;
+      font-size:22px;
+    }
+
+    .meta .sub{
+      color:rgba(255,255,255,.65);
+      font-size:14px;
+    }
+
+    .panel{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:16px;
+      padding:14px;
+    }
+
+    footer{
+      text-align:center;
+      padding:20px;
+      color:rgba(255,255,255,.5);
+      font-size:12px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <a href="/">
+    <img class="logo" src="./assets/logo.svg" alt="WookStars">
+  </a>
+</header>
+
+<div class="container">
+
+  <!-- VIDEO + INFO -->
+  <section>
+    <div class="player">
+  <video
+    id="video"
+    controls
+    playsinline
+    preload="metadata"
+    style="width:100%; height:100%; border-radius:16px;"
+  ></video>
+</div>
+
+    <div class="meta">
+      <h1 id="title">Loading…</h1>
+      <div class="sub" id="sub"></div>
+      <p id="desc" style="margin-top:10px; opacity:.85;"></p>
+    </div>
+  </section>
+
+  <!-- SIDEBAR -->
+  <aside class="panel">
+    <h3>Up Next</h3>
+    <p style="opacity:.7; font-size:13px;">
+      Trending videos will appear here later.
+    </p>
+  </aside>
+
+</div>
+
+<footer>
+  © <span id="year"></span> WookStars
+</footer>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+
+  const API_BASE = "https://wookstars-api.sergio-llovio.workers.dev";
+  // Example:
+  // https://wookstars-api.sergio.workers.dev
+
+  const videoEl = document.getElementById("video");
+
+  async function loadVideo() {
+    if (!id) {
+      document.getElementById("title").textContent = "Video not found";
+      return;
+    }
+
+    try {
+      // Fetch metadata
+      const metaRes = await fetch(`${API_BASE}/api/videos/${id}`);
+      const metaData = await metaRes.json();
+
+      if (!metaData.ok) throw new Error("Video not found");
+
+      const v = metaData.item;
+
+      document.getElementById("title").textContent = v.title;
+      document.getElementById("sub").textContent =
+        `${v.category} • ${v.views} views • Anonymous`;
+      document.getElementById("desc").textContent = v.description || "";
+
+      // Set stream source
+      videoEl.src = `${API_BASE}/api/videos/${id}/stream`;
+
+    } catch (err) {
+      document.getElementById("title").textContent = "Video not found";
+      document.getElementById("sub").textContent = "";
+      document.getElementById("desc").textContent = "";
+      console.error(err);
+    }
+  }
+
+  loadVideo();
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
+
+
+</body>
+</html>
