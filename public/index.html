@@ -89,7 +89,6 @@
       min-width: 260px;
     }
 
-    /* Make sure this path matches your deployed file */
     .logo{
       width: 210px;
       max-width: 52vw;
@@ -140,8 +139,8 @@
       white-space: nowrap;
     }
     .btn:active{ transform: scale(.98); }
+    .btn[disabled]{ opacity:.6; cursor:not-allowed; }
 
-    /* TAGLINE SECTION (UNDER LOGO) */
     .tagline{
       margin: 8px 10px 18px;
       padding: 14px 16px;
@@ -160,6 +159,7 @@
       color: var(--muted);
       line-height: 1.45;
       font-size: 14px;
+      white-space: pre-line;
     }
 
     .cats{
@@ -278,6 +278,7 @@
     .link{
       color: inherit;
       text-decoration: none;
+      display:block;
     }
 
     aside{
@@ -367,7 +368,7 @@
       font-size: 12px;
       color: var(--muted);
     }
-    input[type="text"], textarea, select{
+    input[type="text"], textarea, select, input[type="file"]{
       width: 100%;
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.14);
@@ -408,8 +409,6 @@
 
       <header>
         <div class="brand">
-          <!-- ✅ IMPORTANT: Make sure this file exists at /public or root depending on your setup -->
-          <!-- If your working logo file is different, change the src below to match EXACTLY -->
           <img class="logo" src="./assets/animated-logo-new.svg" alt="WookStars Logo">
         </div>
 
@@ -422,16 +421,13 @@
         </div>
       </header>
 
-      <!-- ✅ TAGLINE SECTION UNDER LOGO -->
       <section class="tagline">
         <h1 id="taglineTitle">Welcome to WookStars</h1>
-        <p id="taglineText">
-          The internet’s home for wook culture, wild clips & underground vibes
-         Anonymous party clips, underground chaos, festival moments,
-         and unfiltered wook energy
-         🌈  Crowd-sourced. Unfiltered. Unhinged.
-         — posted by the community.
-        </p>
+        <p id="taglineText">The internet’s home for wook culture, wild clips & underground vibes
+Anonymous party clips, underground chaos, festival moments,
+and unfiltered wook energy
+🌈  Crowd-sourced. Unfiltered. Unhinged.
+— posted by the community.</p>
       </section>
 
       <div class="cats" id="cats"></div>
@@ -443,17 +439,17 @@
 
         <aside>
           <div class="panel">
-            <h2>What’s Next (Step 2)</h2>
+            <h2>What’s Next</h2>
             <p>
-              You now have a real feed UI. Next we’ll wire the “Submit” form to your upload backend
-              (anonymous uploads first), then add moderation + trending.
+              You now have a real feed + watch page. Next we’ll polish uploads (thumbnails),
+              add moderation, and trending.
             </p>
           </div>
 
           <div class="panel">
             <h2>Future Monetization</h2>
             <p class="small">
-              Later: ads slots, merch/art shop page, and creator pages. We’ll add these after uploads work.
+              Later: ad slots, merch/art shop page, and creator pages.
             </p>
           </div>
         </aside>
@@ -475,9 +471,9 @@
 
       <div class="modal-body">
         <div class="field">
-        <label for="videoFile">Video file</label>
-        <input id="videoFile" type="file" accept="video/*">
-      </div>
+          <label for="videoTitle">Title</label>
+          <input id="videoTitle" type="text" placeholder="e.g., ‘Bass drop sent him to another dimension’">
+        </div>
 
         <div class="row">
           <div class="field">
@@ -485,8 +481,8 @@
             <select id="videoCategory"></select>
           </div>
           <div class="field">
-            <label for="videoSource">Video URL (temporary)</label>
-            <input id="videoSource" type="text" placeholder="https://… (we’ll replace with real uploads next)">
+            <label for="videoFile">Video file</label>
+            <input id="videoFile" type="file" accept="video/*">
           </div>
         </div>
 
@@ -496,25 +492,52 @@
         </div>
 
         <div class="small">
-          For Step 2 we’re saving submissions in-browser only. In the next step we’ll connect anonymous uploads
-          to Cloudflare storage so videos actually upload.
+          Anonymous beta: uploads go to R2 and metadata goes to D1.
+          (We’ll add thumbnails + moderation next.)
         </div>
       </div>
 
       <div class="modal-foot">
-        <button class="btn ghost" id="cancelSubmit">Cancel</button>
-        <button class="btn" id="saveSubmit">Upload</button>
+        <button class="btn ghost" id="cancelSubmit" type="button">Cancel</button>
+        <button class="btn" id="saveSubmit" type="button">Upload</button>
       </div>
     </div>
   </div>
 
   <script>
-    // ======= Demo Data (Step 2: front-page feed UI) =======
-    const categories = ["All", "Festival", "Rave", "Wookin", "Fails", "WTF", "DJ Sets", "Flow Arts"];
+    // ======= Config =======
     const API_BASE = "https://wookstars-api.sergio-llovio.workers.dev";
 
-    // You can replace thumbs with your own images later.
-    // For now these use simple gradients via data URL placeholder.
+    // ======= Categories =======
+    const categories = ["All", "Festival", "Rave", "Wookin", "Fails", "WTF", "DJ Sets", "Flow Arts"];
+
+    // ======= UI Elements =======
+    const feedEl = document.getElementById("feed");
+    const catsEl = document.getElementById("cats");
+    const searchEl = document.getElementById("search");
+
+    // Modal elements
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const openSubmit = document.getElementById("openSubmit");
+    const closeSubmit = document.getElementById("closeSubmit");
+    const cancelSubmit = document.getElementById("cancelSubmit");
+    const saveSubmit = document.getElementById("saveSubmit");
+
+    const videoTitle = document.getElementById("videoTitle");
+    const videoCategory = document.getElementById("videoCategory");
+    const videoDesc = document.getElementById("videoDesc");
+    const videoFile = document.getElementById("videoFile");
+
+    let activeCategory = "All";
+    let searchTerm = "";
+
+    function formatViews(n){
+      if (n >= 1_000_000) return (n/1_000_000).toFixed(1).replace(/\.0$/,'') + "M";
+      if (n >= 1_000) return (n/1_000).toFixed(1).replace(/\.0$/,'') + "K";
+      return String(n);
+    }
+
+    // Placeholder thumb (until we generate real thumbnails)
     const placeholderThumb = (seed) => {
       const svg = encodeURIComponent(`
         <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720">
@@ -532,32 +555,17 @@
       return `data:image/svg+xml;charset=utf-8,${svg}`;
     };
 
-    // Demo videos shown on homepage
+    // Local fallback demo items (shown if API has none or if API fails)
     let videos = [
-      { id: "v1", title: "Glitter goblin goes full gremlin at the drop", category: "Festival", views: 48210, age: "2h", thumb: placeholderThumb(12), url: "" },
-      { id: "v2", title: "Parking lot wizard duel (staff confused)", category: "WTF", views: 21390, age: "5h", thumb: placeholderThumb(99), url: "" },
-      { id: "v3", title: "Bass face so hard the sunglasses left the chat", category: "Rave", views: 90712, age: "1d", thumb: placeholderThumb(220), url: "" },
-      { id: "v4", title: "Wookin for love: dramatic entrance compilation", category: "Wookin", views: 154002, age: "3d", thumb: placeholderThumb(301), url: "" },
-      { id: "v5", title: "Couch flip fail (slow motion regrets)", category: "Fails", views: 33212, age: "4d", thumb: placeholderThumb(42), url: "" },
-      { id: "v6", title: "Unexpected mosh pit at the taco stand", category: "Fights", views: 11822, age: "1w", thumb: placeholderThumb(178), url: "" },
+      { id: "demo1", title: "Glitter goblin goes full gremlin at the drop", category: "Festival", views: 48210, age: "demo", thumb: placeholderThumb(12) },
+      { id: "demo2", title: "Parking lot wizard duel (staff confused)", category: "WTF", views: 21390, age: "demo", thumb: placeholderThumb(99) },
     ];
 
-    // Load any demo submissions saved locally (Step 2 only)
-    const saved = JSON.parse(localStorage.getItem("wookstars_submissions") || "[]");
-    if (saved.length) videos = [...saved, ...videos];
-
-    // ======= UI wiring =======
-    const feedEl = document.getElementById("feed");
-    const catsEl = document.getElementById("cats");
-    const searchEl = document.getElementById("search");
-
-    let activeCategory = "All";
-    let searchTerm = "";
-
-    function formatViews(n){
-      if (n >= 1_000_000) return (n/1_000_000).toFixed(1).replace(/\.0$/,'') + "M";
-      if (n >= 1_000) return (n/1_000).toFixed(1).replace(/\.0$/,'') + "K";
-      return String(n);
+    function matches(v){
+      const catOk = (activeCategory === "All" || v.category === activeCategory);
+      const term = searchTerm.trim().toLowerCase();
+      const termOk = !term || v.title.toLowerCase().includes(term) || v.category.toLowerCase().includes(term);
+      return catOk && termOk;
     }
 
     function renderCats(){
@@ -575,78 +583,48 @@
       });
     }
 
-    function matches(v){
-      const catOk = (activeCategory === "All" || v.category === activeCategory);
-      const term = searchTerm.trim().toLowerCase();
-      const termOk = !term || v.title.toLowerCase().includes(term) || v.category.toLowerCase().includes(term);
-      return catOk && termOk;
-    }
-
     function renderFeed(){
-  const list = videos.filter(matches);
+      const list = videos.filter(matches);
+      feedEl.innerHTML = "";
 
-  feedEl.innerHTML = "";
+      list.forEach(v => {
+        const card = document.createElement("article");
+        card.className = "card";
+        card.innerHTML = `
+          <a class="link" href="./watch.html?id=${encodeURIComponent(v.id)}">
+            <div class="thumb">
+              <img src="${v.thumb || placeholderThumb(v.id.length * 31)}" alt="">
+              <div class="badge">${v.category || "Uncategorized"}</div>
+              <div class="play">▶ ${formatViews(v.views || 0)}</div>
+            </div>
+            <div class="meta">
+              <h3 class="title">${v.title || "Untitled"}</h3>
+              <div class="sub">
+                <span>Anonymous</span>
+                <span>${formatViews(v.views || 0)} views</span>
+              </div>
+            </div>
+          </a>
+        `;
+        feedEl.appendChild(card);
+      });
 
-  list.forEach(v => {
-    const card = document.createElement("article");
-    card.className = "card";
-
-    card.innerHTML = `
-      <a class="link" href="./watch.html?id=${encodeURIComponent(v.id)}">
-
-        <div class="thumb">
-          <img src="${v.thumb}" alt="">
-          <div class="badge">${v.category}</div>
-          <div class="play">▶ ${formatViews(v.views)} • ${v.age}</div>
-        </div>
-        <div class="meta">
-          <h3 class="title">${v.title}</h3>
-          <div class="sub">
-            <span>Anonymous</span>
-            <span>${formatViews(v.views)} views</span>
+      if (!list.length){
+        feedEl.innerHTML = `
+          <div class="panel" style="grid-column: 1 / -1;">
+            <h2>No results</h2>
+            <p>Try another category or clear your search.</p>
           </div>
-        </div>
-      </a>
-    `;
-
-    // Optional: keep this if you want a controlled redirect (otherwise href already works)
-    const link = card.querySelector("a");
-    link.addEventListener("click", (e) => {
-      // e.preventDefault();
-      // window.location.href = `./watch.html?id=${encodeURIComponent(v.id)}`;
-    });
-
-    feedEl.appendChild(card);
-  });
-
-  if (!list.length){
-    feedEl.innerHTML = `
-      <div class="panel" style="grid-column: 1 / -1;">
-        <h2>No results</h2>
-        <p>Try another category or clear your search.</p>
-      </div>
-    `;
-  }
-}
-
+        `;
+      }
+    }
 
     searchEl.addEventListener("input", (e) => {
       searchTerm = e.target.value;
       renderFeed();
     });
 
-    // ======= Modal wiring (Submit demo) =======
-    const modalBackdrop = document.getElementById("modalBackdrop");
-    const openSubmit = document.getElementById("openSubmit");
-    const closeSubmit = document.getElementById("closeSubmit");
-    const cancelSubmit = document.getElementById("cancelSubmit");
-    const saveSubmit = document.getElementById("saveSubmit");
-
-    const videoTitle = document.getElementById("videoTitle");
-    const videoCategory = document.getElementById("videoCategory");
-    const videoSource = document.getElementById("videoSource");
-    const videoDesc = document.getElementById("videoDesc");
-
+    // ======= Modal open/close =======
     function openModal(){
       modalBackdrop.style.display = "flex";
       modalBackdrop.setAttribute("aria-hidden","false");
@@ -656,14 +634,17 @@
       modalBackdrop.style.display = "none";
       modalBackdrop.setAttribute("aria-hidden","true");
       videoTitle.value = "";
-      videoSource.value = "";
       videoDesc.value = "";
+      videoFile.value = "";
       videoCategory.value = categories[1];
+      saveSubmit.textContent = "Upload";
+      saveSubmit.disabled = false;
     }
 
     openSubmit.onclick = openModal;
     closeSubmit.onclick = closeModal;
     cancelSubmit.onclick = closeModal;
+
     modalBackdrop.onclick = (e) => {
       if (e.target === modalBackdrop) closeModal();
     };
@@ -682,166 +663,96 @@
       videoCategory.value = categories[1];
     }
 
-    const videoFile = document.getElementById("videoFile");
+    // ======= Upload to Worker =======
+    saveSubmit.onclick = async () => {
+      const title = videoTitle.value.trim();
+      const category = videoCategory.value;
+      const description = videoDesc.value.trim();
+      const file = videoFile.files && videoFile.files[0];
 
-saveSubmit.onclick = async () => {
-  const title = videoTitle.value.trim();
-  const category = videoCategory.value;
-  const description = videoDesc.value.trim();
-  const fileInput = document.getElementById("videoFile");
-
-  <div class="field">
-  <label for="videoFile">Video File</label>
-  <input id="videoFile" type="file" accept="video/*">
-</div>
-
-  if (!title) {
-    alert("Please enter a title.");
-    return;
-  }
-
-  if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-    alert("Please select a video file.");
-    return;
-  }
-
-  const file = fileInput.files[0];
-
-  const formData = new FormData();
-  formData.append("title", title);
-  formData.append("category", category);
-  formData.append("description", description);
-  formData.append("file", file);
-
-  try {
-    saveSubmit.disabled = true;
-    saveSubmit.textContent = "Uploading…";
-
-    const res = await fetch(
-      "https://wookstars-api.sergio-llovio.workers.dev/api/upload",
-      {
-        method: "POST",
-        body: formData,
+      if (!title) {
+        alert("Please enter a title.");
+        return;
       }
-    );
-
-    const data = await res.json();
-
-    if (!data.ok) {
-      throw new Error(data.error || "Upload failed");
-    }
-      
-    closeModal();
-    alert("Upload successful! Video is now live 🎉");
-
-    // Reload feed from API (next step)
-    window.location.reload();
-
-  } catch (err) {
-    alert("Upload failed: " + err.message);
-  } finally {
-    saveSubmit.disabled = false;
-    saveSubmit.textContent = "Submit Video";
-  }
-};
-
-
-    }
-
-    const form = new FormData();
-    form.append("title", title);
-    form.append("category", category);
-    form.append("file", file);
-
-    const res = await fetch(
-      "https://wookstars-api.sergio-llovio.workers.dev/api/upload",
-      { method: "POST", body: form }
-    );
-
-    const data = await res.json();
-    if (!data.ok) {
-      alert("Upload failed");
-      return;
-    }
-
-    alert("Uploaded!");
-    window.location.href = `watch.html?id=${data.id}`;
-  };
-
-  fileInput.click();
-};
-
+      if (!file) {
+        alert("Please choose a video file.");
+        return;
       }
 
-      const id = "u" + Math.random().toString(16).slice(2);
-      const newVid = {
-        id,
-        title,
-        category: cat,
-        views: Math.floor(200 + Math.random()*2500),
-        age: "just now",
-        thumb: placeholderThumb(Math.floor(Math.random()*360)),
-        url: src,
-        desc
-      };
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("category", category);
+      formData.append("description", description);
+      formData.append("file", file);
 
-      const existing = JSON.parse(localStorage.getItem("wookstars_submissions") || "[]");
-      existing.unshift(newVid);
-      localStorage.setItem("wookstars_submissions", JSON.stringify(existing));
+      try {
+        saveSubmit.disabled = true;
+        saveSubmit.textContent = "Uploading…";
 
-      videos.unshift(newVid);
-      closeModal();
-      renderFeed();
-      alert("Saved (demo). Next step: real anonymous uploads to Cloudflare storage.");
+        const res = await fetch(`${API_BASE}/api/upload`, {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || `Upload failed (HTTP ${res.status})`);
+        }
+
+        closeModal();
+        alert("Upload successful! Video is now live 🎉");
+
+        // Send them straight to the watch page for that ID
+        window.location.href = `./watch.html?id=${encodeURIComponent(data.id)}`;
+
+      } catch (err) {
+        alert("Upload failed: " + (err?.message || err));
+        saveSubmit.disabled = false;
+        saveSubmit.textContent = "Upload";
+      }
     };
+
+    // ======= Load feed from API =======
+    async function loadFromApi(){
+      const res = await fetch(`${API_BASE}/api/videos?limit=30`);
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to load videos");
+      }
+
+      // Your API returns items with: id,title,category,created_at,views
+      // We don't have thumbnails yet, so use placeholderThumb.
+      videos = (data.items || []).map((v, idx) => ({
+        id: v.id,
+        title: v.title,
+        category: v.category,
+        views: v.views || 0,
+        age: v.created_at ? new Date(v.created_at).toLocaleDateString() : "",
+        thumb: placeholderThumb((idx + 1) * 47),
+      }));
+
+      // If DB empty, keep demos so page isn't blank
+      if (!videos.length) {
+        videos = [
+          { id: "demo1", title: "No uploads yet — be the first 😈", category: "WTF", views: 0, age: "now", thumb: placeholderThumb(120) }
+        ];
+      }
+    }
 
     // Init
     document.getElementById("year").textContent = new Date().getFullYear();
     renderCats();
     populateCategorySelect();
     renderFeed();
-    loadFromApi().catch(() => {
-  // If API fails, keep your demo feed
-  renderFeed();
-});
 
+    loadFromApi()
+      .then(renderFeed)
+      .catch((e) => {
+        console.warn("API load failed; showing demo feed.", e);
+        renderFeed();
+      });
   </script>
-
-<script>
-  const API_BASE = "https://wookstars-api.sergio-llovio.workers.dev";
-
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get("id");
-
-  async function load(){
-    if(!id){
-      document.getElementById("title").textContent = "Video not found";
-      return;
-    }
-
-    const metaRes = await fetch(`${API_BASE}/api/videos/${encodeURIComponent(id)}`);
-    const meta = await metaRes.json();
-    if(!metaRes.ok || !meta.ok){
-      document.getElementById("title").textContent = "Video not found";
-      return;
-    }
-
-    const v = meta.item;
-    document.getElementById("title").textContent = v.title;
-    document.getElementById("sub").textContent = `${v.category} • ${v.views} views • Anonymous`;
-    document.getElementById("desc").textContent = v.description || "";
-
-    const player = document.getElementById("player");
-    player.src = `${API_BASE}/api/videos/${encodeURIComponent(id)}/stream`;
-  }
-
-  document.getElementById("year").textContent = new Date().getFullYear();
-  load().catch(err => {
-    console.error(err);
-    document.getElementById("title").textContent = "Error loading video";
-  });
-</script>
-
-  
 </body>
 </html>
