@@ -686,48 +686,65 @@
 
 saveSubmit.onclick = async () => {
   const title = videoTitle.value.trim();
-  const cat = videoCategory.value;
-  const desc = videoDesc.value.trim();
-  const file = videoFile.files && videoFile.files[0];
+  const category = videoCategory.value;
+  const description = videoDesc.value.trim();
+  const fileInput = document.getElementById("videoFile");
 
-  if (!title) return alert("Please enter a title.");
-  if (!file) return alert("Please choose a video file.");
+  <div class="field">
+  <label for="videoFile">Video File</label>
+  <input id="videoFile" type="file" accept="video/*">
+</div>
 
-  // UI feedback
-  saveSubmit.disabled = true;
-  saveSubmit.textContent = "Uploading…";
+  if (!title) {
+    alert("Please enter a title.");
+    return;
+  }
+
+  if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+    alert("Please select a video file.");
+    return;
+  }
+
+  const file = fileInput.files[0];
+
+  const formData = new FormData();
+  formData.append("title", title);
+  formData.append("category", category);
+  formData.append("description", description);
+  formData.append("file", file);
 
   try {
-    const fd = new FormData();
-    fd.append("title", title);
-    fd.append("category", cat);
-    fd.append("description", desc);
-    fd.append("file", file);
+    saveSubmit.disabled = true;
+    saveSubmit.textContent = "Uploading…";
 
-    const res = await fetch(`${API_BASE}/api/upload`, {
-      method: "POST",
-      body: fd,
-    });
+    const res = await fetch(
+      "https://wookstars-api.sergio-llovio.workers.dev/api/upload",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
 
     const data = await res.json();
-    if (!res.ok || !data.ok) {
-      throw new Error(data.error || `Upload failed (${res.status})`);
+
+    if (!data.ok) {
+      throw new Error(data.error || "Upload failed");
     }
-
+      
     closeModal();
+    alert("Upload successful! Video is now live 🎉");
 
-    // Refresh feed from API (simple approach)
-    await loadFromApi();
+    // Reload feed from API (next step)
+    window.location.reload();
 
-    alert("Uploaded!");
   } catch (err) {
-    console.error(err);
-    alert(`Upload error: ${err.message || err}`);
+    alert("Upload failed: " + err.message);
   } finally {
     saveSubmit.disabled = false;
-    saveSubmit.textContent = "Upload";
+    saveSubmit.textContent = "Submit Video";
   }
 };
+
 
     }
 
