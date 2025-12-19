@@ -8,3 +8,67 @@
 body{margin:0;font-family:system-ui;background:#07060a;color:#fff}
 header{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid rgba(255,255,255,.1)}
 .logo{width:180px}
+.feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:20px}
+.card{background:#111;border-radius:12px;overflow:hidden}
+.thumb{aspect-ratio:16/9;background:#000}
+.meta{padding:12px}
+.modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.7)}
+.modal{background:#111;padding:20px;border-radius:12px;width:420px}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="./assets/logo.svg" class="logo">
+  <button id="openSubmit">Submit Video</button>
+</header>
+
+<div class="feed" id="feed"></div>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h3>Upload Video</h3>
+    <input id="title" placeholder="Title"><br><br>
+    <input id="file" type="file" accept="video/*"><br><br>
+    <button id="upload">Upload</button>
+    <button id="close">Cancel</button>
+  </div>
+</div>
+
+<script>
+const API="https://wookstars-api.sergio-llovio.workers.dev";
+const feed=document.getElementById("feed");
+const modal=document.getElementById("modal");
+
+document.getElementById("openSubmit").onclick=()=>modal.style.display="flex";
+document.getElementById("close").onclick=()=>modal.style.display="none";
+
+async function load(){
+  const res=await fetch(API+"/api/videos");
+  const data=await res.json();
+  feed.innerHTML="";
+  (data.items||[]).forEach(v=>{
+    const d=document.createElement("div");
+    d.className="card";
+    d.innerHTML=`<div class="thumb"></div><div class="meta"><b>${v.title}</b></div>`;
+    feed.appendChild(d);
+  });
+}
+
+document.getElementById("upload").onclick=async()=>{
+  const title=document.getElementById("title").value;
+  const file=document.getElementById("file").files[0];
+  if(!title||!file){alert("Missing fields");return;}
+  const fd=new FormData();
+  fd.append("title",title);
+  fd.append("file",file);
+  const res=await fetch(API+"/api/upload",{method:"POST",body:fd});
+  const out=await res.json();
+  if(out.ok){modal.style.display="none";load();}
+  else alert(out.error);
+};
+
+load();
+</script>
+</body>
+</html>
