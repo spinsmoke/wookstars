@@ -1,0 +1,27 @@
+# Cloudflare Wrangler config for Pages Functions + D1
+
+# api/wrangler.toml
+name = "wookstars-api"
+compatibility_date = "2024-12-01"
+
+# This makes the Worker available at:
+# https://wookstars-api.sergio-llovio.workers.dev
+workers_dev = true
+
+# ===== ENV VARS =====
+[vars]
+ALLOWED_ORIGINS = "https://wookstars.com,https://www.wookstars.com,https://wookstars.pages.dev"
+
+
+# ===== R2 =====
+[[r2_buckets]]
+binding = "VIDEOS"
+bucket_name = "wookstars-videos"
+
+# ===== D1 =====
+[[d1_databases]]
+binding = "DB"
+database_name = "wookstars-db"
+# KEEP YOUR REAL UUID HERE 👇
+database_id = "d4022eca-b0e3-452e-b356-0c8a56e2bee8"
+
