@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Watch • WookStars</title>
+
+  <style>
+    body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#07060a; color:#fff; }
+    header{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; border-bottom:1px solid rgba(255,255,255,.1); }
+    .logo{ width:180px; height:auto; display:block; }
+    .back{ color:rgba(255,255,255,.85); text-decoration:none; border:1px solid rgba(255,255,255,.18); padding:10px 12px; border-radius:999px; background:rgba(255,255,255,.06); }
+    .container{ max-width:1100px; margin:0 auto; padding:20px; display:grid; grid-template-columns:1fr 320px; gap:20px; }
+    @media (max-width:900px){ .container{ grid-template-columns:1fr; } }
+
+    .player{ background:#000; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.6); overflow:hidden; border:1px solid rgba(255,255,255,.12); }
+    video{ width:100%; height:auto; display:block; background:#000; }
+
+    .meta h1{ margin:14px 0 6px; font-size:22px; }
+    .meta .sub{ color:rgba(255,255,255,.65); font-size:14px; }
+
+    .panel{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:14px; }
+    .panel h3{ margin:0 0 10px; font-size:14px; }
+    .panel p{ margin:0; opacity:.75; font-size:13px; line-height:1.4; }
+
+    .error{ margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,90,90,.25); background:rgba(255,90,90,.08); color:rgba(255,220,220,.95); display:none; word-break:break-word; }
+    .kv{ margin-top:10px; font-size:12px; opacity:.8; }
+    code{ opacity:.9; }
+
+    footer{ text-align:center; padding:20px; color:rgba(255,255,255,.5); font-size:12px; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <a href="/">
+    <img class="logo" src="./assets/logo.svg" alt="WookStars">
+  </a>
+  <a class="back" href="/">← Back to Home</a>
+</header>
+
+<div class="container">
+  <section>
+    <div class="player">
+      <video id="player" controls playsinline preload="metadata"></video>
+    </div>
+
+    <div class="error" id="errBox"></div>
+
+    <div class="meta">
+      <h1 id="title">Loading…</h1>
+      <div class="sub" id="sub"></div>
+      <p id="desc" style="margin-top:10px; opacity:.85;"></p>
+      <div class="kv" id="streamInfo"></div>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <h3>Quick checks</h3>
+    <p>
+      If playback fails:
+      <br>• open the stream URL in a new tab
+      <br>• confirm your Worker returns <code>Content-Type: video/mp4</code>
+      <br>• MP4 (H.264/AAC) is best compatibility
+    </p>
+  </aside>
+</div>
+
+<footer>
+  © <span id="year"></span> WookStars
+</footer>
+
+<script>
+  // Keep this at TOP so it is always defined before anything uses it.
+  const API_BASE = "https://wookstars-api.sergio-llovio.workers.dev";
+
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+
+  const titleEl = document.getElementById("title");
+  const subEl = document.getElementById("sub");
+  const descEl = document.getElementById("desc");
+  const player = document.getElementById("player");
+  const errBox = document.getElementById("errBox");
+  const streamInfo = document.getElementById("streamInfo");
+
+  function showErr(msg){
+    errBox.style.display = "block";
+    errBox.textContent = msg;
+  }
+
+  async function load(){
+    if(!id){
+      titleEl.textContent = "Video not found";
+      subEl.textContent = "";
+      showErr("Missing ?id= in the URL. Go back and click a video card again.");
+      return;
+    }
+
+    const streamUrl = `${API_BASE}/api/videos/${encodeURIComponent(id)}/stream`;
+    player.src = streamUrl;
+    streamInfo.innerHTML = `Stream URL: <a href="${streamUrl}" target="_blank" rel="noreferrer" style="color:#9ff">${streamUrl}</a>`;
+
+    // Fetch metadata (optional)
+    try{
+      const res = await fetch(`${API_BASE}/api/videos/${encodeURIComponent(id)}`);
+      const data = await res.json();
+
+      if(!data.ok){
+        titleEl.textContent = "Video not found";
+        subEl.textContent = "";
+        showErr("Metadata API error: " + (data.error || "Unknown error"));
+        return;
+      }
+
+      const v = data.item;
+      titleEl.textContent = v.title || "Untitled";
+      const views = (typeof v.views === "number") ? v.views : 0;
+      const date = v.created_at ? new Date(v.created_at).toLocaleString() : "";
+      subEl.textContent = `${v.category || "Uncategorized"} • ${views} views • ${date} • Anonymous`;
+      descEl.textContent = v.description || "";
+    }catch(e){
+      // Don’t block playback if metadata fetch fails
+      titleEl.textContent = "Now playing";
+      subEl.textContent = "Anonymous";
+      descEl.textContent = "";
+    }
+
+    player.addEventListener("error", () => {
+      const code = player.error && player.error.code;
+      showErr("Video failed to load. Error code: " + code + ". Open the Stream URL above to see the exact Worker response.");
+    });
+  }
+
+  document.getElementById("year").textContent = new Date().getFullYear();
+  load();
+</script>
+
+</body>
+</html>
